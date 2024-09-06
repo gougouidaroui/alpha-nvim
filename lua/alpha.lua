@@ -192,6 +192,21 @@ function alpha.highlight(state, end_ln, hl, left, el)
 end
 
 local layout_element = {}
+function layout_element.virtual_text(el, conf, state)
+    local ns = state.vt_ns
+    if ns == nil then
+        ns = vim.api.nvim_create_namespace('alpha')
+        state.vt_ns = ns
+    end
+    local opts = vim.tbl_extend("keep", el.opts or {}, {
+        virt_text = el.val,
+        virt_text_pos = 'overlay',
+        virt_text_win_col = 10,
+        virt_text_hide = false,
+    })
+    vim.api.nvim_buf_set_mark(state.buffer, 'a', el.line(state.line), el.col, opts)
+    return {}, {}
+end
 
 function alpha.resolve(to, el, opts, state)
     local new_el = deepcopy(el)
@@ -344,6 +359,7 @@ end
 function layout_element.group(el, conf, state)
     if type(el.val) == "function" then
         return alpha.resolve(layout_element.group, el, conf, state)
+        return alpha.resolve(layout_element.virtual_text , el, conf, state)
     end
 
     if type(el.val) == "table" then
