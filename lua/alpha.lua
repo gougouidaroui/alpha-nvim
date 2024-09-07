@@ -192,21 +192,47 @@ function alpha.highlight(state, end_ln, hl, left, el)
 end
 
 local layout_element = {}
-function layout_element.virtual_text(el, conf, state)
-    local ns = state.vt_ns
-    if ns == nil then
-        ns = vim.api.nvim_create_namespace('alpha')
-        state.vt_ns = ns
+local function draw_buttons(state)
+    local header_lines = { "Header Line 1", "Header Line 2", "Header Line 3" } -- Example lines
+
+    local button_positions = {
+        { line = 1, text = "[ Start ]", action = function() print("Start pressed") end },
+        { line = 2, text = "[ Quit ]", action = function() vim.cmd("q") end },
+    }
+
+    local ns_id = vim.api.nvim_create_namespace('alpha_buttons')
+
+    -- Clear any existing virtual text
+    vim.api.nvim_buf_clear_namespace(state.buffer, ns_id, 0, -1)
+
+    -- Place buttons as virtual text
+    for _, btn in ipairs(button_positions) do
+        vim.api.nvim_buf_set_extmark(state.buffer, ns_id, btn.line, 0, {
+            virt_text = { { btn.text, "Identifier" } },  -- Style the text with a highlight group
+            virt_text_pos = "right_align",  -- Align the virtual text on the right
+        })
     end
-    local opts = vim.tbl_extend("keep", el.opts or {}, {
-        virt_text = el.val,
-        virt_text_pos = 'overlay',
-        virt_text_win_col = 10,
-        virt_text_hide = false,
-    })
-    vim.api.nvim_buf_set_mark(state.buffer, 'a', el.line(state.line), el.col, opts)
-    return {}, {}
+
+    -- Bind keymaps to handle button presses
+    for _, btn in ipairs(button_positions) do
+        vim.keymap.set("n", "<CR>", function() btn.action() end, { buffer = state.buffer })
+    end
 end
+-- function layout_element.virtual_text(el, conf, state)
+--     local ns = state.vt_ns
+--     if ns == nil then
+--         ns = vim.api.nvim_create_namespace('alpha')
+--         state.vt_ns = ns
+--     end
+--     local opts = vim.tbl_extend("keep", el.opts or {}, {
+--         virt_text = el.val,
+--         virt_text_pos = 'overlay',
+--         virt_text_win_col = 10,
+--         virt_text_hide = false,
+--     })
+--     vim.api.nvim_buf_set_mark(state.buffer, 'a', el.line(state.line), el.col, opts)
+--     return {}, {}
+-- end
 
 function alpha.resolve(to, el, opts, state)
     local new_el = deepcopy(el)
@@ -359,7 +385,6 @@ end
 function layout_element.group(el, conf, state)
     if type(el.val) == "function" then
         return alpha.resolve(layout_element.group, el, conf, state)
-        return alpha.resolve(layout_element.virtual_text , el, conf, state)
     end
 
     if type(el.val) == "table" then
@@ -644,6 +669,7 @@ function alpha.draw(conf, state)
     vim.api.nvim_buf_set_lines(state.buffer, 0, -1, false, {})
     layout(conf, state)
     vim.api.nvim_buf_set_option(state.buffer, "modifiable", false)
+    draw_buttons(state)
     local active_win = active_window(state)
     if vim.api.nvim_get_current_win() == active_win then
         if #cursor_jumps ~= 0 then
